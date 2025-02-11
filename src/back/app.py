@@ -10,6 +10,8 @@ import sys
 import os
 sys.path.append(os.getcwd())
 
+import control_src.put_realData as put_realData
+
 
 
 
@@ -22,6 +24,8 @@ api = Api(app)
 # @app.route('/', methods=["GET"])
 # def index():
 #     return "Welcome to API v1, try /hello."
+
+api.add_resource(put_realData.PutRealData, '/updateData/RealData')
 
 
 
