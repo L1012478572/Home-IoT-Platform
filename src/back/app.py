@@ -20,6 +20,7 @@ def register_active_device():
         data = request.get_json()
         print("data:", data)
         device_id = system_manger_instance.register_active_device(
+            data["type"], 
             data["device_name"], 
             data["device_location"], 
             data["device_ipv4"], 
