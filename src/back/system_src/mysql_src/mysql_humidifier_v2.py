@@ -11,7 +11,7 @@
             device_port: 设备端口
             register_time: 注册时间
 
-    2 创建对应的设备数据库，并管理数据 数据库名根据humidifier_v2+device_id生成
+    2 创建对应的设备数据库，并管理数据 数据库名根据humidifier_v2_device_id生成
         2.1 每月创建一个表 表名：humidifier_v2_YYYYMM
         2.2 表结构：
             id: key
@@ -24,6 +24,7 @@
 
 import mysql.connector
 import datetime
+import time
 
 class MySql_HumidifierV2:
     def __init__(self, mysql_host: str, mysql_port: int, mysql_user: str, mysql_password: str):
@@ -86,6 +87,8 @@ class MySql_HumidifierV2:
             self.mysql_deviceInfo_cursor.execute(sql, val)
             self.mysql_deviceInfo_conn.commit()
             print(f"设备{device_id}的数据已添加到humidifier_v2表中")
+            # 创建对应的设备数据库
+            self.create_database_if_not_exists(device_id)
         except mysql.connector.Error as err:
             print(f"添加设备{device_id}的数据到humidifier_v2表失败: {err}")
 
@@ -129,4 +132,93 @@ class MySql_HumidifierV2:
             print(f"设备{device_id}的数据已更新")
         except mysql.connector.Error as err:
             print(f"更新设备{device_id}的数据失败: {err}")
+
+    def delete_humidifier_v2_data_by_device_id(self, device_id: str):
+        '''
+        根据device_id删除humidifier_v2表中的数据
+        '''
+        try:
+            sql = "DELETE FROM humidifier_v2 WHERE device_id = %s"
+            val = (device_id,)
+            self.mysql_deviceInfo_cursor.execute(sql, val)
+            self.mysql_deviceInfo_conn.commit()
+            print(f"设备{device_id}的数据已删除")
+        except mysql.connector.Error as err:
+            print(f"删除设备{device_id}的数据失败: {err}")
     
+    def create_database_if_not_exists(self, device_id: str):
+        '''
+        检查mysql中有没有对应device_id的数据库，若没有，则创建该数据库
+        数据库名根据humidifier_v2_device_id
+        '''
+        try:
+            database_name = f"humidifier_v2_{device_id}"
+            sql = f"CREATE DATABASE IF NOT EXISTS {database_name}"
+            self.mysql_deviceInfo_cursor.execute(sql)
+            print(f"数据库{database_name}已存在或创建成功")
+        except mysql.connector.Error as err:
+            print(f"检查或创建数据库{database_name}失败: {err}")
+
+    def check_and_create_monthly_table(self, device_id: str):
+        '''
+        检查对应名称的数据库中是否有当前月份的表，表名：humidifier_v2_YYYYMM
+        如果没有，则创建该表
+        表结构：
+            id: key
+            datetime: 数据时间
+            temperature: 温度
+            humidity: 湿度
+            humidity_set: 湿度设置
+            remaining_battery: 剩余电量
+        '''
+        try:
+            database_name = f"humidifier_v2_{device_id}"
+            current_month = time.strftime("%Y%m")
+            table_name = f"humidifier_v2_{current_month}"
+            self.mysql_deviceInfo_cursor.execute(f"USE {database_name}")
+            self.mysql_deviceInfo_cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+            result = self.mysql_deviceInfo_cursor.fetchone()
+            if result:
+                print(f"表{table_name}已存在")
+            else:
+                create_table_sql = f"""
+                CREATE TABLE {table_name} (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    datetime DATETIME,
+                    temperature FLOAT,
+                    humidity FLOAT,
+                    humidity_set FLOAT,
+                    remaining_battery INT
+                )
+                """
+                self.mysql_deviceInfo_cursor.execute(create_table_sql)
+                print(f"表{table_name}创建成功")
+        except mysql.connector.Error as err:
+            print(f"检查或创建表{table_name}失败: {err}")
+
+    def insert_data_to_monthly_table(self, device_id: str, datetime: str, temperature: float, humidity: float, humidity_set: float, remaining_battery: int):
+        '''
+        向当前设备数据库中对应当前月份的表中，插入数据
+        表结构：
+            id: key
+            datetime: 数据时间
+            temperature: 温度
+            humidity: 湿度
+            humidity_set: 湿度设置
+            remaining_battery: 剩余电量
+        '''
+        try:
+            database_name = f"humidifier_v2_{device_id}"
+            current_month = time.strftime("%Y%m")
+            table_name = f"humidifier_v2_{current_month}"
+            self.mysql_deviceInfo_cursor.execute(f"USE {database_name}")
+            insert_sql = f"""
+            INSERT INTO {table_name} (datetime, temperature, humidity, humidity_set, remaining_battery)
+            VALUES (%s, %s, %s, %s, %s)
+            """
+            data = (datetime, temperature, humidity, humidity_set, remaining_battery)
+            self.mysql_deviceInfo_cursor.execute(insert_sql, data)
+            self.mysql_deviceInfo_conn.commit()
+            print(f"数据插入表{table_name}成功")
+        except mysql.connector.Error as err:
+            print(f"插入数据到表{table_name}失败: {err}")

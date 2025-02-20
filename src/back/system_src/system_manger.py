@@ -7,6 +7,7 @@ import threading
 import logging
 import uuid
 import sys
+import datetime
 
 sys.path.append(os.getcwd())
 
@@ -89,6 +90,8 @@ class SystemManager:
         # }
         device_data = data_parse["device_data"]
 
+        self._process_heartbeat_data(device_type, device_id, sensor_data, device_data)
+
         # 检查设备是否存在
         for active_device in self.active_devices:
             if active_device.device_id == device_id:
@@ -122,3 +125,24 @@ class SystemManager:
             device_id = str(uuid.uuid4().int)[:32]
             print(f"设备类型{type}不存在")
             return device_id
+        
+    def _process_heartbeat_data(self, type: str, device_id: str, sensor_data, device_data):
+        """
+        处理心跳中传入的数据
+        """
+        try:
+            # 判断设备类型
+            if type == "humidifier_v2":
+                insert_time = datetime.datetime.now()
+                temperature = sensor_data[0]["value"]   # 温度  
+                humidity = sensor_data[1]["value"]      # 湿度
+                humidity_set = device_data["humidity"]  # 湿度设置
+                remaining_battery = device_data["remaining_battery"]  # 剩余电量
+                self.mysql_humidifier_v2.insert_data_to_monthly_table(device_id, insert_time, float(temperature), float(humidity), float(humidity_set), int(remaining_battery))
+
+            else:
+                print(f"设备类型{type}不存在")  
+        except Exception as e:
+            print(f"处理心跳数据失败: {e}")
+
+

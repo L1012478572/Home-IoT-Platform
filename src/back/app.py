@@ -29,6 +29,18 @@ def register_active_device():
         return jsonify({"status": "success", "device_id": device_id})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+    
+# 心跳数据
+@app.route('/updateData/HeartbeatData', methods=["PUT"])
+def heartbeat_data():
+    try:
+        data = request.get_json()
+        if system_manger_instance.input_device_heartbeat(data) == True:
+            return jsonify({"status": "success", "message": "心跳数据处理成功"})
+        else:
+            return jsonify({"status": "error", "message": "心跳数据处理失败"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
 
 # @app.route('/', methods=["GET"])
 # def index():
